@@ -139,7 +139,7 @@ void setup() {
 
     pinMode(answerPin, OUTPUT);
     pinMode(unlockPin, OUTPUT);
-    pinMode(btnPin, INPUT);
+    pinMode(btnPin, INPUT_PULLUP);
 
     mqttClient.onConnect(onMqttConnect);
     mqttClient.onDisconnect(onMqttDisconnect);
