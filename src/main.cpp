@@ -136,8 +136,8 @@ void setup() {
     wifiConnectHandler = WiFi.onStationModeGotIP(onWifiConnect);
     wifiDisconnectHandler = WiFi.onStationModeDisconnected(onWifiDisconnect);
 
-    pinMode(answerPin, INPUT);
-    pinMode(unlockPin, INPUT);
+    pinMode(answerPin, OUTPUT);
+    pinMode(unlockPin, OUTPUT);
 
     mqttClient.onConnect(onMqttConnect);
     mqttClient.onDisconnect(onMqttDisconnect);
