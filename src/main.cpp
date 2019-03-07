@@ -33,7 +33,7 @@ bool isUnlocking = false;
 
 void unlock(const int stage) {
     if (stage == 0) {
-        Serial.println("Unlock called. Answering...");
+        Serial.println("Started unlocking process, answering...");
 
         isUnlocking = true;
 
@@ -157,7 +157,7 @@ void loop() {
     int btnState = digitalRead(btnPin);
 
     if (btnState != lastBtnState) {
-        if (btnState == HIGH) {
+        if (btnState == LOW) {
             Serial.println("Unlock btn pushed. Unlocking...");
             unlock(0);
         }
