@@ -5,7 +5,7 @@
 #define WIFI_SSID "Solomaha"
 #define WIFI_PASSWORD "solomakha21"
 
-#define MQTT_HOST IPAddress(192, 168, 1, 76)
+#define MQTT_HOST IPAddress(192, 168, 1, 230)
 #define MQTT_PORT 1883
 #define MQTT_ID "corridor-buzzer"
 #define MQTT_PASSWORD "bnmdfgu534mbv7yadsu2hj34687tsd"
