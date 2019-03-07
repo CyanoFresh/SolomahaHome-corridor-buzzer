@@ -27,7 +27,7 @@ const int answerPin = D1;
 const int unlockPin = D2;
 const int btnPin = D3;
 
-int lastBtnState = LOW;
+int lastBtnState = HIGH;
 bool isRinging = false;
 bool isUnlocking = false;
 
