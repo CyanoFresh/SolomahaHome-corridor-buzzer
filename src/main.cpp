@@ -25,8 +25,9 @@ Ticker ringingTimer;
 
 const int answerPin = D1;
 const int unlockPin = D2;
-//const int buttonPin = D3;
+const int btnPin = D3;
 
+int lastBtnState = LOW;
 bool isRinging = false;
 bool isUnlocking = false;
 
@@ -138,6 +139,7 @@ void setup() {
 
     pinMode(answerPin, OUTPUT);
     pinMode(unlockPin, OUTPUT);
+    pinMode(btnPin, INPUT);
 
     mqttClient.onConnect(onMqttConnect);
     mqttClient.onDisconnect(onMqttDisconnect);
@@ -151,4 +153,15 @@ void setup() {
     connectToWifi();
 }
 
-void loop() {}
+void loop() {
+    int btnState = digitalRead(btnPin);
+
+    if (btnState != lastBtnState) {
+        if (btnState == HIGH) {
+            Serial.println("Unlock btn pushed. Unlocking...");
+            unlock(0);
+        }
+
+        lastBtnState = btnState;
+    }
+}
