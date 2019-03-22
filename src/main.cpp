@@ -63,8 +63,6 @@ void ringingCheck() {
         return;
     }
 
-//    Serial.println(analogRead(A0)); // debug
-
     if (analogRead(A0) > 512) {
         if (!isRinging) {
             Serial.println("Call detected");
