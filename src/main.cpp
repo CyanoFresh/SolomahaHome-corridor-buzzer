@@ -147,10 +147,10 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties,
     } else if (strcmp(topic, "buzzer/corridor-buzzer/auto_unlock/set") == 0) {
         isAutoUnlock = strncmp(payload, "true", 4) == 0;
 
-        Serial.print("Auto-unlock now is ");
+        Serial.print("Auto-unlock is now ");
         Serial.println(isAutoUnlock ? "enabled" : "disabled");
 
-        mqttClient.publish("buzzer/corridor-buzzer/auto_unlock", 0, false, payload);
+        mqttClient.publish("buzzer/corridor-buzzer/auto_unlock", 0, false, isAutoUnlock ? "true" : "false");
     }
 }
 
