@@ -1,17 +1,7 @@
 #include <AsyncMqttClient.h>
 #include <ESP8266WiFi.h>
 #include <Ticker.h>
-
-#define WIFI_SSID "Solomaha"
-#define WIFI_PASSWORD "solomakha21"
-
-#define MQTT_HOST IPAddress(192, 168, 1, 230)
-#define MQTT_PORT 1883
-#define MQTT_ID "corridor-buzzer"
-#define MQTT_PASSWORD "bnmdfgu534mbv7yadsu2hj34687tsd"
-
-#define UNLOCK_DELAY 1
-#define UNLOCKING_DURATION 1
+#include "config.h"
 
 AsyncMqttClient mqttClient;
 Ticker mqttReconnectTimer;
@@ -23,53 +13,75 @@ Ticker wifiReconnectTimer;
 Ticker unlockTimer;
 Ticker ringingTimer;
 
-const int answerPin = D1;
-const int unlockPin = D2;
-const int btnPin = D3;
-
-int lastBtnState = HIGH;
 bool isRinging = false;
 bool isUnlocking = false;
+bool isAutoUnlock = false;
 
-void unlock(const int stage) {
-    if (stage == 0) {
-        Serial.println("Started unlocking process, answering...");
+enum unlockStage {
+    ANSWER,
+    UNLOCK,
+    HANG_UP,
+};
 
-        isUnlocking = true;
+void unlock(unlockStage stage = ANSWER) {
+    switch (stage) {
+        case ANSWER:
+            Serial.println("Answering...");
 
-        digitalWrite(answerPin, 1);
+            isUnlocking = true;
 
-        unlockTimer.once(UNLOCK_DELAY, unlock, 1);
-    } else if (stage == 1) {
-        Serial.println("Pressing unlock button...");
+            digitalWrite(config::ANSWER_PIN, 1);
 
-        digitalWrite(unlockPin, 1);
+            unlockTimer.once(config::UNLOCK_DELAY, unlock, UNLOCK);
 
-        unlockTimer.once(UNLOCKING_DURATION, unlock, 2);
-    } else if (stage == 2) {
-        Serial.println("Unlocked. Hanging up...");
+            break;
+        case UNLOCK:
+            Serial.println("Unlocking...");
 
-        isUnlocking = false;
+            digitalWrite(config::UNLOCK_PIN, 1);
 
-        digitalWrite(answerPin, 0);
-        digitalWrite(unlockPin, 0);
+            unlockTimer.once(config::UNLOCKING_DURATION, unlock, HANG_UP);
 
-        mqttClient.publish("buzzer/corridor-buzzer/unlocked", 0, false, "true");
+            break;
+        case HANG_UP:
+            Serial.println("Hanging up...");
+
+            isUnlocking = false;
+
+            digitalWrite(config::ANSWER_PIN, 1);
+            digitalWrite(config::ANSWER_PIN, 0);
+            digitalWrite(config::UNLOCK_PIN, 0);
+
+            mqttClient.publish("buzzer/corridor-buzzer/unlocked", 0, false, isAutoUnlock ? "true" : "false");
+
+            isAutoUnlock = false;
+
+            break;
     }
 }
+
+unsigned long lastLineUpTime;
 
 void ringingCheck() {
     if (isUnlocking) {
         return;
     }
 
-    if (analogRead(A0) > 512) {
+    bool isLineUp = analogRead(A0) > 512;
+
+    if (isLineUp) {
         if (!isRinging) {
             Serial.println("Call detected");
 
             isRinging = true;
+            lastLineUpTime = millis();
 
             mqttClient.publish("buzzer/corridor-buzzer/ringing", 0, false, "true");
+
+            if (isAutoUnlock) {
+                Serial.println("Auto-unlocking...");
+                unlock();    // TODO: check out if delay is needed
+            }
         }
     } else {
         if (isRinging) {
@@ -83,81 +95,100 @@ void ringingCheck() {
 }
 
 void connectToWifi() {
-    Serial.println("Connecting to Wi-Fi...");
-    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+    Serial.println(F("Connecting to Wi-Fi..."));
+    WiFi.begin(config::WIFI_SSID, config::WIFI_PASSWORD);
 }
 
 void connectToMqtt() {
-    Serial.println("Connecting to MQTT...");
+    Serial.println(F("Connecting to MQTT..."));
     mqttClient.connect();
 }
 
-void onWifiConnect(const WiFiEventStationModeGotIP &event) {
-    Serial.println("Connected to Wi-Fi.");
+void onWifiConnect(const WiFiEventStationModeGotIP &) {
     connectToMqtt();
 }
 
 void onWifiDisconnect(const WiFiEventStationModeDisconnected &event) {
-    Serial.println("Disconnected from Wi-Fi.");
+    Serial.print(F("Disconnected from Wi-Fi: "));
+    Serial.println(event.reason);
+    digitalWrite(LED_BUILTIN, LOW);
+
     mqttReconnectTimer.detach();
     wifiReconnectTimer.once(2, connectToWifi);
 }
 
 void onMqttConnect(bool) {
-    Serial.println("Connected to MQTT.");
+    Serial.println(F("Connected to MQTT."));
+    digitalWrite(LED_BUILTIN, HIGH);
 
     // Subscribe to topics:
     mqttClient.subscribe("buzzer/corridor-buzzer/unlock", 0);
+    mqttClient.subscribe("buzzer/corridor-buzzer/auto_unlock/set", 0);
 }
 
 void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
-    Serial.print("Disconnected from MQTT. Reason: ");
+    Serial.print(F("Disconnected from MQTT. Reason: "));
     Serial.println((int) reason);
+
+    digitalWrite(LED_BUILTIN, LOW);
 
     if (WiFi.isConnected()) {
         mqttReconnectTimer.once(2, connectToMqtt);
     }
 }
 
-void onMqttMessage(char *topic, char *payload,
-                   AsyncMqttClientMessageProperties properties, size_t len,
-                   size_t index, size_t total) {
+void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties, size_t, size_t, size_t) {
     if (strcmp(topic, "buzzer/corridor-buzzer/unlock") == 0) {
-        unlock(0);
+        if (strncmp(payload, "true", 4) == 0) {
+            unlock();
+        } else {
+            unlock(HANG_UP);
+        }
+    } else if (strcmp(topic, "buzzer/corridor-buzzer/auto_unlock/set") == 0) {
+        isAutoUnlock = strncmp(payload, "true", 4) == 0;
+
+        Serial.print("Auto-unlock now is ");
+        Serial.println(isAutoUnlock ? "enabled" : "disabled");
+
+        mqttClient.publish("buzzer/corridor-buzzer/auto_unlock", 0, false, payload);
     }
 }
 
 void setup() {
     Serial.begin(115200);
     Serial.println();
-    Serial.println();
+
+    pinMode(LED_BUILTIN, OUTPUT);
+    pinMode(config::ANSWER_PIN, OUTPUT);
+    pinMode(config::UNLOCK_PIN, OUTPUT);
+    pinMode(config::BTN_PIN, INPUT_PULLUP);
+
+    digitalWrite(LED_BUILTIN, LOW);
 
     wifiConnectHandler = WiFi.onStationModeGotIP(onWifiConnect);
     wifiDisconnectHandler = WiFi.onStationModeDisconnected(onWifiDisconnect);
 
-    pinMode(answerPin, OUTPUT);
-    pinMode(unlockPin, OUTPUT);
-    pinMode(btnPin, INPUT_PULLUP);
-
     mqttClient.onConnect(onMqttConnect);
     mqttClient.onDisconnect(onMqttDisconnect);
     mqttClient.onMessage(onMqttMessage);
-    mqttClient.setServer(MQTT_HOST, MQTT_PORT);
-    mqttClient.setClientId(MQTT_ID);
-    mqttClient.setCredentials("device", MQTT_PASSWORD);
+    mqttClient.setServer(config::MQTT_HOST, config::MQTT_PORT);
+    mqttClient.setClientId(config::MQTT_ID);
+    mqttClient.setCredentials("device", config::MQTT_PASSWORD);
 
     ringingTimer.attach_ms(100, ringingCheck);
 
     connectToWifi();
 }
 
+uint8_t lastBtnState = HIGH;
+
 void loop() {
-    int btnState = digitalRead(btnPin);
+    uint8_t btnState = digitalRead(config::BTN_PIN);
 
     if (btnState != lastBtnState) {
         if (btnState == LOW) {
             Serial.println("Unlock btn pushed. Unlocking...");
-            unlock(0);
+            unlock();
         }
 
         lastBtnState = btnState;
