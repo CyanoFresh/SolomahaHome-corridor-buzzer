@@ -17,7 +17,7 @@ namespace config {
     const uint8_t BTN_PIN = D3;
 
     const uint8_t UNLOCK_DELAY = 1;     // TODO: can be lowered?
-    const float AUTO_UNLOCK_DELAY = 0.5;
+    const float AUTO_UNLOCK_DELAY = 0.7;
     const uint8_t UNLOCKING_DURATION = 1;
 }
 
