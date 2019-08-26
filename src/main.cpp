@@ -80,7 +80,7 @@ void ringingCheck() {
 
             if (isAutoUnlock) {
                 Serial.println("Auto-unlocking...");
-                unlock();    // TODO: check out if delay is needed
+                unlockTimer.once(config::AUTO_UNLOCK_DELAY, unlock, ANSWER);
             }
         }
     } else {
