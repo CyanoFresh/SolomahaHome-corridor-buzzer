@@ -1,5 +1,5 @@
-#ifndef ROOM1_SECONDARY_LIGHT_CONFIG_H
-#define ROOM1_SECONDARY_LIGHT_CONFIG_H
+#ifndef CORRIDOR_BUZZER_CONFIG_H
+#define CORRIDOR_BUZZER_CONFIG_H
 
 #include <Arduino.h>
 
@@ -17,7 +17,7 @@ namespace config {
     const uint8_t BTN_PIN = D3;
 
     const uint8_t UNLOCK_DELAY = 1;     // TODO: can be lowered?
-    const float AUTO_UNLOCK_DELAY = 0.7;
+    const float AUTO_UNLOCK_DELAY = 0.8;
     const uint8_t UNLOCKING_DURATION = 1;
 }
 
